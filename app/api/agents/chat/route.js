@@ -1,7 +1,13 @@
+import { parseJsonRequest, validateRequestBody, toSafeError } from "@/lib/production-guardrails";
 import { runAgentWorkflow } from "@/lib/agents/workflow";
 
 export async function POST(request) {
-  const body = await request.json().catch(() => ({}));
+  const body = await parseJsonRequest(request);
+  const guardrail = validateRequestBody(body);
+  if (!guardrail.ok) {
+    return Response.json({ error: guardrail.error }, { status: guardrail.status });
+  }
+
 
   if (!process.env.OPENAI_API_KEY) {
     return Response.json(
@@ -19,7 +25,7 @@ export async function POST(request) {
     return Response.json(result);
   } catch (error) {
     return Response.json(
-      { error: error.message || "The agent workflow failed." },
+      { error: toSafeError(error, "The agent workflow failed.") },
       { status: 500 },
     );
   }
